@@ -7,12 +7,14 @@
 #include "x86.h"
 #include "traps.h"
 #include "spinlock.h"
+#define nullptr ((void*)0)
 
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
+pte_t * walkpgdir(pde_t *pgdir, const void *va, int alloc);
 
 void
 tvinit(void)
@@ -36,6 +38,7 @@ idtinit(void)
 void
 trap(struct trapframe *tf)
 {
+  pte_t *pte;
   if(tf->trapno == T_SYSCALL){
     if(myproc()->killed)
       exit();
@@ -75,6 +78,16 @@ trap(struct trapframe *tf)
   case T_IRQ0 + IRQ_SPURIOUS:
     cprintf("cpu%d: spurious interrupt at %x:%x\n",
             cpuid(), tf->cs, tf->eip);
+    lapiceoi();
+    break;
+  case T_PGFLT:
+    
+    pte = walkpgdir(myproc()->pgdir, (void *)rcr2(), 0);
+    if (!(*pte & PTE_W)){
+      cprintf("cpu%d: you are trying to mprotect an mprotected page %x:%x\n",
+            cpuid(), tf->cs, tf->eip);
+    }
+    myproc() -> killed = 1;
     lapiceoi();
     break;
 
