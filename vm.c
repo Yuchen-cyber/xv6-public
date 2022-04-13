@@ -32,7 +32,7 @@ seginit(void)
 // Return the address of the PTE in page table pgdir
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page table pages.
-static pte_t *
+pte_t *
 walkpgdir(pde_t *pgdir, const void *va, int alloc)
 {
   pde_t *pde;
@@ -54,6 +54,111 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
   }
   return &pgtab[PTX(va)];
 }
+
+int
+mprotect(void *addr, int len)
+{
+  struct proc *curproc = myproc();
+  //check if len is equal or smaller than 0
+  if (len <= 0){
+    cprintf("length is smaller or equal to 0, catch an error, return -1\n");
+    return -1;
+  }
+  //check if addr is nullptr
+  if (addr == 0){
+    cprintf("addr can not be nullptr, catch an error, return -1\n");
+    return -1;
+  }
+  //check if addr is page-aligend
+  if ((int)(((int)addr) % PGSIZE) != 0){
+    cprintf("addr is not page-aligned, catch an error, return -1\n");
+    return -1;
+  }
+  //check if addr is in the address range
+  if (len*PGSIZE + (int)addr > curproc->vlimit||len <=0){
+    cprintf("addr is not in the range, catch an error, return -1\n");
+    return -1;
+  }
+  
+  pte_t *pte;
+  uint a;
+  cprintf("*addr: %d\n",(uint)addr);
+  
+  uint base_addr = PGROUNDDOWN((uint)addr);
+  uint curr = base_addr;
+  for (a = curr; a < ((uint)addr +len); a += PGSIZE)
+  {
+    pte = walkpgdir(curproc->pgdir,(void *)a ,0);
+    cprintf("page table entry before: 0x%x \n",*pte);
+    // check whether it is writable or not
+    if (*pte & PTE_W){
+      *pte = *pte &(~PTE_W);
+    }
+    cprintf("page table entry after: 0x%x\n",*pte);
+  
+  }
+  
+
+  //flush that tlb real good
+  lcr3(V2P(curproc->pgdir));
+
+  return 0; 
+}
+
+int
+munprotect(void *addr, int len)
+{
+  struct proc *curproc = myproc();
+  //check if len is equal or smaller than 0
+  if (len <= 0){
+    cprintf("length is smaller or equal to 0, catch an error, return -1\n");
+    return -1;
+  }
+  //check if addr is nullptr
+  if (addr == 0){
+    cprintf("addr can not be nullptr, catch an error, return -1\n");
+    return -1;
+  }
+  //check if addr is page-aligend
+  if ((int)(((int)addr) % PGSIZE) != 0){
+    cprintf("addr is not page-aligned, catch an error, return -1\n");
+    return -1;
+  }
+  //check if addr is in the address range
+  if (len*PGSIZE + (int)addr > curproc->vlimit||len <=0){
+    cprintf("addr is not in the range, catch an error, return -1\n");
+    return -1;
+  }
+  
+  
+  pte_t *pte;
+  uint a;
+  pte_t *pgtab;
+  cprintf("*addr: %d\n",(uint)addr);
+
+  
+  
+  uint base_addr = PGROUNDDOWN((uint)addr);
+  uint curr = base_addr;
+  for (a = curr; a < ((uint)addr +len); a += PGSIZE)
+  {
+    pte = walkpgdir(curproc->pgdir,(void *)a ,0);
+    pgtab = (pte_t*)P2V(PTE_ADDR(*pte));
+    cprintf("page table entry before: 0x%x \n",*pte);
+    // check whether it is writable or no
+    if (!(*pte & PTE_W)){
+      *pte = V2P(pgtab)|PTE_P|PTE_W| PTE_U;
+    }
+    cprintf("page table entry after: 0x%x\n",*pte);
+  
+  }
+  
+
+  //flush that tlb real good
+  lcr3(V2P(curproc->pgdir));
+  return 0; 
+}
+
 
 // Create PTEs for virtual addresses starting at va that refer to
 // physical addresses starting at pa. va and size might not
