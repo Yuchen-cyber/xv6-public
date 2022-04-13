@@ -7,11 +7,91 @@
 #include "syscall.h"
 #include "traps.h"
 #include "memlayout.h"
+#define nullptr ((void*)0)
 
 char buf[8192];
 char name[3];
 char *echoargv[] = { "echo", "ALL", "TESTS", "PASSED", 0 };
 int stdout = 1;
+
+
+
+//test helper functions for mprotect
+// test cases for mprotect successfully
+void
+mprotectNormalTest(){
+  int* address = (int*)4096;
+  int returnValue = mprotect((void *)address, sizeof(int));
+  printf(stdout,"The return value of normal mprotect should be 0, actual value is:%d\n\n", returnValue);
+  // you can uncomment the lines below to see if the system will kill when 
+  //user access mprotected region of memory.
+  // *address = 100;
+  // printf(stdout,"The expected value is 100, the final output is %d\n\n", *address);
+
+}
+// test cases for zero length
+void
+mprotectZeroLenTest(){
+  int returnValue = mprotect((void *)4096, 0);
+  printf(stdout,"The return value of mprotect with zero len should be -1, actual value is: %d\n\n", returnValue);
+}
+// test cases for nullptr address
+void
+mprotectNullptrTest(){
+  int returnValue = mprotect(nullptr, 2);
+  printf(stdout,"The return value of mprotect with nullptr should be -1, actual value is: %d\n\n", returnValue);
+}
+// test cases for address not in the range
+void
+mprotectNotInTheRangeTest(){
+  int returnValue = mprotect((void *)4096, 5);
+  printf(stdout,"The return value of mprotect with address not in the range should be -1, actual value is: %d\n\n", returnValue);
+}
+// test cases for address not page-aligned
+void
+mprotectNotPageAlignedTheRangeTest(){
+  int returnValue = mprotect((void *)4097, sizeof(int));
+  printf(stdout,"The return value of mprotect with address not page-aligened should be -1, actual value is: %d\n\n", returnValue);
+}
+
+
+//test helper functions for munprotect
+// test cases for munprotect successfully
+void
+munprotectNormalTest(){
+  int* address = (int*)4096;
+  int returnValue = munprotect((void *)address, sizeof(int));
+  printf(stdout,"The return value of normal munprotect should be 0, actual value is: %d\n\n", returnValue);
+  // write the address
+  *address = 100;
+  printf(stdout,"The expected value is 100, the final output is %d\n\n", *address);
+}
+// test cases for zero length
+void
+munprotectZeroLenTest(){
+  int returnValue = munprotect((void *)4096, 0);
+  printf(stdout,"The return value of munprotect with zero len should be -1, actual value is: %d\n\n", returnValue);
+}
+// test cases for nullptr
+void
+munprotectNullptrTest(){
+  int returnValue = munprotect(nullptr, 2);
+  printf(stdout,"The return value of munprotect with nullptr should be -1,actual value is: %d\n\n", returnValue);
+}
+// test cases for address not in the range
+void
+munprotectNotInTheRangeTest(){
+  int returnValue = munprotect((void *)4096, 5);
+  printf(stdout,"The return value of munprotect with address not in the range should be -1, actual value is: %d\n\n", returnValue);
+}
+// test cases for address not page-aligned
+void
+munprotectNotPageAlignedTheRangeTest(){
+  int returnValue = munprotect((void *)4097, sizeof(int));
+  printf(stdout,"The return value of munprotect with address not page-aligened should be -1, actual value is: %d\n\n", returnValue);
+}
+
+
 
 // does chdir() call iput(p->cwd) in a transaction?
 void
@@ -1748,6 +1828,21 @@ rand()
 int
 main(int argc, char *argv[])
 {
+
+  printf(stdout, "The tests for mprotect:\n");
+  mprotectNormalTest();
+  mprotectZeroLenTest();
+  mprotectNullptrTest();
+  mprotectNotInTheRangeTest();
+  mprotectNotPageAlignedTheRangeTest();
+
+  printf(stdout, "The tests for munprotect:\n");
+  munprotectNormalTest();
+  munprotectZeroLenTest();
+  munprotectNullptrTest();
+  munprotectNotInTheRangeTest();
+  munprotectNotPageAlignedTheRangeTest();
+  
   printf(1, "usertests starting\n");
 
   if(open("usertests.ran", 0) >= 0){
